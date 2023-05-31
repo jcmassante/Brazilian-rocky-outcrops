@@ -1,0 +1,878 @@
+---
+title: "Statistical Analysis"
+subtitle: "Looking similar but all different: phylogenetic signature of Brazilian rocky outcrops and the influence of temperature variability on their phylogenetic structure"
+author: "JC Massante et. al. (2023)"
+date: "*Published in Journal of Ecology*"
+output:
+  html_document:
+    code_download: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{css, echo=FALSE}
+h1, h2, h3, h4 {
+  text-align: center;
+}
+
+pre {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 400px;
+}
+```
+
+***
+
+The following code was used to produce the results of the paper entitled: "Looking similar but all different: phylogenetic signature of Brazilian rocky outcrops and the influence of temperature variability on their phylogenetic structure", published in the Journal of Ecology by Jhonny Capichoni Massante and collaborators. The code accompanies a dataset that includes the name of sampling units (sites), their geographic location (latitude and longitude), climatic variables and phylogenetic indices.
+
+The analyses presented in this document start with two figures presented in Supporting Information that gives an overview of climatic variables across Brazilian rocky outcrops. Then, we show some 'data checking' (e.g., spatial autocorrelation) before modelling. Finally, we show figures of the *Results* section, except Figure 3, because it was produced in another software (Phylocom). Supplementary tables and figures follow their mentioning in the main text right after the respective main figure. Table S1 (Variance Inflation Factors) is shown after the modelling section. For additional details, please see the paper's *Material and Methods* section. 
+
+We hope this report helps the reader understand the analysis behind the results presented in the paper. The code does not intend to be efficient in terms of programming. Thus, some readers experts in R programming might find this code a bit "clunky" and inefficient. We welcome any suggestion that could improve it. Please reach out by email: *jhonny.massante@ut.ee* or through Github: *https://github.com/jcmassante*, where the dataset and the code are archived on the *https://github.com/jcmassante/Brazilian-rocky-outcrops* repository.
+
+<br>
+
+***
+
+***Part 1: Data inspection and Figures S1 and S2***
+
+We start by loading the necessary packages.
+We used the R package ```openxlsx``` for handling the dataset. Feel free to transform it into .csv or any other format and use the corresponding package.
+```{r}
+library(here)#helps to find the dataset in the R project path
+library(openxlsx)#opens XLSX files
+library(tidyverse) #for data wrangling and additional functions
+```
+
+</br>
+Now, we load the dataset and organise it to be analysed. The variable group corresponds to the name of Brazilian rocky outcrops as follows: CR = *Campo rupestre*, CF = *Canga*, CA = *Campos de altitude*, IN = *Inselberg*.
+```{r, comment = "" }
+data <- read.xlsx(here("dataset.xlsx"), sheet = 1)
+str(data$group)# The variable is a character
+
+# Transform group into factor and reorder it
+data$group  <- factor(as.factor(data$group), levels = c("CR", "CF", "CA", "IN"))
+str(data$group)#Now it is a factor with four levels
+levels(data$group)#See the levels
+
+```
+
+<br>
+
+The following code produces a figure that indicates the correlation between predictor climatic variables. The figure is referred in the main text as Fig. S1 and is available in the Supporting Information after tables.
+```{r}
+library(GGally)# Package for the correlation figure
+
+# Variables to check the correlation
+vars <- c("tempSeas", "minTempColdestMonth",	"annualPrec",	"precSeas", "precColdestQuarter")
+
+# Perform pairwise correlation
+data_models <- data[, vars]
+
+# Scale the variables: zero mean and unit variance
+data_models <- scale(data_models)
+
+#transform into dataframe
+data_models <- as.data.frame(data_models)
+
+#Plot the correlation between all variables
+rel_plot <- ggpairs(data_models, 
+  columns = 1:ncol(data_models), title = "",  
+  axisLabels = "show",
+  columnLabels = c("tempSeas", "minTempColdestMonth",	"annualPrec",	"precSeas", "precColdestQuarter"),
+  mapping = aes(alpha = 0.5)) +
+  theme_bw()
+```
+
+<br>
+
+Here is figure S1:
+```{r}
+rel_plot
+```
+
+<br>
+
+Here, we show the variation of climatic variables in each rock outcrop (Fig. S2): 
+```{r}
+library(ggplot2)
+
+p1 <- ggplot(data, aes(group, tempSeas, fill = group)) +
+  geom_boxplot(alpha = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Temperature Seasonality\n(standard deviation ×100)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+p2 <- ggplot(data, aes(group, minTempColdestMonth, fill = group)) +
+  geom_boxplot(alpha = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Min Temperature of Coldest Month", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+p3 <- ggplot(data, aes(group, annualPrec, fill = group)) +
+  geom_boxplot(alpha = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Annual Precipitation", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+p4 <- ggplot(data, aes(group, precSeas, fill = group)) +
+  geom_boxplot(alpha = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Precipitation Seasonality\n(Coefficient of Variation)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+p5 <- ggplot(data, aes(group, precColdestQuarter, fill = group)) +
+  geom_boxplot(alpha = 0.5) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Precipitation of Coldest Quarter", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+#Group figures
+all.clim.veg <- ggpubr::ggarrange(p1, p2, p3, p4, p5, ncol = 3, nrow = 2,
+                  labels = c("(a)", "(b)", "(c)", "(d)", "(e)"))
+
+
+#Save it
+#ggsave(here("resubm", "all.clim.veg.types.tiff"), height = 8, width = 10)
+```
+
+Here is figure S2:
+```{r, fig.width=10, fig.height=8}
+all.clim.veg
+```
+
+<br>
+
+***Part 2: Spatial autocorrelation***
+
+Now, we check for spatial autocorrelation in the models' residuals. First, we include additional variables in the previously created object ```data_models```. These variables include the main response variables, i.e., **sesPD**, **sesMPD**, and **sesMNTD** and geographic coordinates. Then, we run ordinary least square models and check for spatial autocorrelation in the residuals using the function ```Morans.I``` from the ```ape``` R package. We do it for all main response variables. Finally, as we found spatial autocorrelation for two models' residuals, we ran linear mixed-effect models, including the spatial autocorrelation term ```corEXP``` in the ```nlme``` R package.
+
+Here, we add response variables, geographic location and site/group names.
+```{r}
+#Include response variables
+data_models$sesmpd <- data$mpd.obs.z.resubm
+data_models$sesmntd <- data$mntd.obs.z.resubm
+data_models$sespd <- data$pd.obs.z.resubm
+
+#Include spatial and group information
+data_models$lat <- data$latitude
+data_models$lon <- data$longitude
+data_models$group <- data$group
+data_models$lat <- jitter(data_models$lat)#elimitate zero distance by a factor
+data_models$site <- data$site
+```
+
+<br>
+
+Now, we run ordinary least square models (OLS) and extract their residuals.
+```{r}
+# sesPD
+lm_pd <- lm(sespd ~ 
+              tempSeas + minTempColdestMonth + annualPrec + precSeas + precColdestQuarter + group,
+            data = data_models)
+
+# sesMPD
+lm_mpd <- lm(sesmpd ~
+               tempSeas + minTempColdestMonth +	annualPrec + precSeas + precColdestQuarter + group,
+             data = data_models)
+
+# sesMNTD
+lm_mntd <- lm(sesmntd ~
+                tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter + group,
+              data = data_models)
+# Plot Diagnostics
+#par(mfrow = c(2,2))
+#plot(model_pd)
+#plot(model_mpd)
+#plot(model_mntd)
+
+#dev.off()
+
+res_pd <- residuals(lm_pd)
+res_mpd <- residuals(lm_mpd)
+res_mntd <- residuals(lm_mntd)
+
+# Model's summary
+#summary(model_pd)
+#summary(model_mpd)
+#summary(model_mntd)
+```
+
+<br>
+
+We create a geographic distance matrix between sites to be used in the ```Moran's I``` function.
+```{r, comment=""}
+library(sp) #for handling geographic coordinates
+
+# Create geographic distance between sites
+coord <- as.matrix(spDists(cbind(data_models$lon, data_models$lat), longlat = TRUE, diagonal = FALSE))
+rownames(coord) <- data_models$site
+colnames(coord) <- data_models$site
+
+#Inverse distance weights
+inv.geo.dist <- 1/coord
+
+#Replace diagonal entries with zero
+diag(inv.geo.dist) <- 0
+inv.geo.dist[is.infinite(inv.geo.dist)] <- 0
+
+#Confirm whether it is zero
+sum(is.infinite(inv.geo.dist))
+```
+
+<br>
+
+Now, we calculate Moran's I for the residuals of each OLS model using ```ape``` R package.
+```{r}
+library(ape) #for the Moran's I function
+
+# Moran's I
+mor_pd <- data.frame(Moran.I(res_pd, inv.geo.dist))
+mor_mpd <- data.frame(Moran.I(res_mpd, inv.geo.dist))
+mor_mntd <- data.frame(Moran.I(res_mntd, inv.geo.dist))
+
+# Combine outputs by rows
+mor_all_lm <- rbind(mor_pd, mor_mpd, mor_mntd)
+
+# Include a column with the response variables
+mor_all_lm$Response <- c("sesPD", "sesMPD", "sesMNTD")
+
+# Reorder columns
+mor_all_lm <- mor_all_lm[, c("Response", "observed", "expected", "sd", "p.value")]
+```
+
+<br>
+
+Here is the table S2 with values of Moran's I for each OLS model:
+```{r}
+library(kableExtra) # for changing table styles.
+
+# As in other tables below, we take the table generated from the original code and customise it such that it becomes similar to what has been shown in the publication.
+mor_all_lm %>%
+  kbl(caption = "Table S2: Moran’s I coefficient for the residuals extracted from linear models (least square) with the standardised effect size of the phylogenetic diversity (sesPD), the standardised effect size of the mean pairwise distance (sesMPD), and the standardised effect size of the mean nearest taxon distance (sesMNTD) as response variables.") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+
+```
+
+<br>
+
+Since we found significant spatial autocorrelation for two response variables, we now run mixed-effect models accounting for spatial autocorrelation and heterogeneous aspects of sampling within sites (i.e., sites as a random effect) and extract the normalised residuals.
+```{r}
+library(nlme) #for mixed-effect models
+
+model_pd <- lme(sespd ~
+                  tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter,
+                random = ~1|site,
+                corExp(form = ~ lon + lat),
+                data = data_models, 
+                method = "ML",
+                na.action = na.exclude)
+
+model_mpd <- lme(sesmpd ~
+                   tempSeas + minTempColdestMonth +	annualPrec + precSeas + precColdestQuarter,
+                 random = ~1|site,
+                 corExp(form = ~ lon + lat),
+                 data = data_models,
+                 method = "ML",
+                 na.action = na.exclude)
+
+model_mntd <- lme(sesmntd ~
+                    tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter,
+                  random = ~1|site,
+                  corExp(form = ~ lon + lat),
+                  data = data_models,
+                  method = "ML",
+                  na.action = na.exclude)
+
+res_pd <- residuals(model_pd, type = "normalized")
+res_mpd <- residuals(model_mpd, type = "normalized")
+res_mntd <- residuals(model_mntd, type = "normalized")
+```
+
+<br>
+
+Finally, we calculate the Moran's I for the normalised residuals.
+```{r}
+# Moran's I
+mor_pd <- data.frame(Moran.I(res_pd, inv.geo.dist))
+mor_mpd <- data.frame(Moran.I(res_mpd, inv.geo.dist))
+mor_mntd <- data.frame(Moran.I(res_mntd, inv.geo.dist))
+
+# Combine outputs by rows
+mor_all_lme <- rbind(mor_pd, mor_mpd, mor_mntd)
+
+# Include a column with the response variables
+mor_all_lme$Response <- c("sesPD", "sesMPD", "sesMNTD")
+
+# Reorder columns
+mor_all_lme <- mor_all_lme[, c("Response", "observed", "expected", "sd", "p.value")]
+```
+
+<br>
+
+Here is the table S3 with Moran's I from the mixed-effect models' residuals:
+```{r}
+
+mor_all_lme %>%
+  kbl(caption = "Table S3: Moran’s I coefficient for the normalised residuals extracted from linear mixed-effects models with the standardised effect size of the phylogenetic diversity (sesPD), the standardised effect size of the mean pairwise distance (sesMPD), and the standardised effect size of the mean nearest taxon distance (sesMNTD) as response variables. An exponential correlation structure was included in all models to account for the spatial autocorrelation between sites.") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+```
+
+<br>
+
+***
+
+***Part 3: Modelling, figure 2 and associated supplementary tables***
+
+Now that the first part has been done, we move to the results showed in the figure 2 and associate supporting tables S4, S5, and S6. First, we run the models for **sesPD**, **sesMPD**, and **sesMNTD**. Then, we plot the figure.
+
+Modelling sesPD:
+```{r}
+# sesPD
+
+model_pd <- lme(sespd ~
+                  tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter + group,
+                random = ~1|site,
+                corExp(form = ~ lon + lat), 
+                data = data_models,
+                method = "REML",
+                na.action = na.exclude)
+
+# VIF of the final model for sespd
+# vif(model_pd)
+# summary(model_pd)
+# anova.lme(model_pd, type = "marginal")
+
+# Coefficients and confidence intervals for plotting
+confints.r <- intervals(model_pd,which = "fixed")$fixed
+var.r <- as.factor(rownames(confints.r))
+sespd.avg <- data.frame(confints.r, var.r)
+sespd.avg <- sespd.avg[2:6, ]
+sespd.avg$colcoef.r <- cut(sespd.avg$est., breaks = c(-Inf, -0.77, -0.76, 1, 1.01, Inf))
+
+# Rename x labels
+sespd.avg <- sespd.avg %>% 
+  mutate(var.r = recode_factor(var.r, 
+                             precColdestQuarter = "Precipitation of the\ncoldest quarter",
+                             precSeas = "Precipitation \n seasonality",
+                             minTempColdestMonth = "Minimum \ntemperature",
+                             annualPrec = "Annual\nprecipitation",
+                             tempSeas = "Temperature \nseasonality", .ordered = TRUE))
+
+# Plot it
+sespd.coef <- ggplot(sespd.avg, aes(var.r, est., color = colcoef.r)) +
+ geom_hline(yintercept = 0, color = "grey", lwd = 0.8, lty = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.08, size = 0.7, alpha = 0.7, show.legend = F) +
+  geom_point(size = 2, alpha = 0.7, show.legend = F) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.5, 1.62), breaks = c(-1.5, -1, -0.5, 0, 0.5, 1, 1.5)) +
+  theme_bw() +
+  coord_flip() +
+  scale_color_manual(values = c("#2b8cbe", "#252525", "#b22222")) +
+  theme(axis.title.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10)) +
+  annotate("text", x = 3.2, y = 1.025, label = "**",color = "#b22222") +
+  annotate("text", x = 5.2, y = -0.783, label = "*",color = "#2b8cbe") +
+  labs(title = "sesPD", subtitle = expression("Marginal R"^2 ~"= 0.425/ Conditional R"^2 ~"= 0.615 "))
+
+sespd.coef <- sespd.coef +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black")
+    )
+```
+
+<br>
+
+Modelling sesMPD:
+```{r}
+# sesMPD
+model_mpd <- lme(sesmpd ~
+                   tempSeas + minTempColdestMonth +	annualPrec + precSeas + precColdestQuarter + group,
+                 random = ~1|site,
+                 corExp(form = ~ lon + lat),
+                 data = data_models,
+                 method = "REML",
+                 na.action = na.exclude)
+
+# VIF of the final model for SESmpd
+# vif(model_mpd)
+# summary(model_mpd)
+# anova.lme(model_mpd)
+
+# Coefficients and confidence intervals for plotting
+confints.r <- intervals(model_mpd,which = "fixed")$fixed
+var.r <- as.factor(rownames(confints.r))
+sesmpd.avg <- data.frame(confints.r, var.r)
+sesmpd.avg <- sesmpd.avg[2:6, ]
+sesmpd.avg$colcoef.r <- cut(sesmpd.avg$est., breaks = c(-Inf,  -1.12, 1.11, 1.16, 1.17, Inf))
+
+# Rename x labels
+sesmpd.avg <- sesmpd.avg %>% 
+   mutate(var.r = recode_factor(var.r, 
+                             precColdestQuarter = "Precipitation of the\ncoldest quarter",
+                             precSeas = "Precipitation \n seasonality",
+                             minTempColdestMonth = "Minimum \ntemperature",
+                             annualPrec = "Annual\nprecipitation",
+                             tempSeas = "Temperature \nseasonality", .ordered = TRUE))
+
+# Plot it
+sesmpd.coef <- ggplot(sesmpd.avg, aes(var.r, est., color = colcoef.r)) +
+ geom_hline(yintercept = 0, color = "grey", lwd = 0.8, lty = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.08, size = 0.7, alpha = 0.7, show.legend = F) +
+  geom_point(size = 2, alpha = 0.7, show.legend = F) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-2.5, 2.2), breaks = c(-2.5, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2)) +
+  theme_bw() +
+  coord_flip() +
+   scale_color_manual(values = c("#2b8cbe", "#252525", "#b22222")) +
+  theme(axis.title.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10)) +
+  annotate("text", x = 1.2, y = -1.34, label = "*",color = "#2b8cbe") +
+  annotate("text", x = 3.2, y = 1.19, label = "*",color = "#b22222") +
+  annotate("text", x = 5.2, y = -1.15, label = "*",color = "#2b8cbe") +
+  labs(title = "sesMPD", subtitle = expression("Marginal R"^2 ~"= 0.298/ Conditional R"^2 ~"= 0.528 "))
+
+sesmpd.coef <- sesmpd.coef +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black")
+    )
+
+```
+
+<br>
+
+Modelling sesMNTD:
+```{r}
+# sesMNTD
+model_mntd <- lme(sesmntd ~
+                    tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter + group,
+                  random = ~1|site,
+                  corExp(form = ~ lon + lat),
+                  data = data_models,
+                  method = "REML",
+                  na.action = na.exclude)
+
+# VIF of the final model for sesmntd
+#vif(model_mntd)
+#summary(model_mntd)
+#anova.lme(model_mntd)
+
+# Coefficients and confidence intervals for plotting
+confints.r <- intervals(model_mntd,which = "fixed")$fixed
+var.r <- as.factor(rownames(confints.r))
+sesmntd.avg <- data.frame(confints.r, var.r)
+sesmntd.avg <- sesmntd.avg[2:6, ]
+sesmntd.avg$colcoef.r <- cut(sesmntd.avg$est., breaks = c(-Inf, -0.60, -0.59, 0.77, 0.78, Inf))
+
+# Rename x labels
+sesmntd.avg <- sesmntd.avg %>% 
+  mutate(var.r = recode_factor(var.r, 
+                             precColdestQuarter = "Precipitation of the\ncoldest quarter",
+                             precSeas = "Precipitation \n seasonality",
+                             minTempColdestMonth = "Minimum \ntemperature",
+                             annualPrec = "Annual\nprecipitation",
+                             tempSeas = "Temperature \nseasonality", .ordered = TRUE))
+
+# Plot it
+sesmntd.coef <- ggplot(sesmntd.avg, aes(var.r, est., color = colcoef.r)) +
+ geom_hline(yintercept = 0, color = "grey", lwd = 0.8, lty = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.08, size = 0.7, alpha = 0.7, show.legend = F) +
+  geom_point(size = 2, alpha = 0.7, show.legend = F) +
+  scale_x_discrete(name = NULL ) +
+  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.20, 1.30), breaks = c(-1, -0.5, 0, 0.5, 1)) +
+  theme_bw() +
+  coord_flip() +
+  scale_color_manual(values = c("#2b8cbe", "#252525", "#b22222")) +
+  theme(axis.title.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10)) +
+  annotate("text", x = 3.2, y = 0.784, label = "**",color = "#b22222") +
+  annotate("text", x = 5.2, y = -0.607, label = "*",color = "#2b8cbe") +
+  labs(title = "sesMNTD", subtitle = expression("Marginal R"^2 ~"= 0.330/ Conditional R"^2 ~"= 0.600 "))
+
+sesmntd.coef <- sesmntd.coef +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black")
+    )
+```
+
+<br>
+
+Here, we combine the three plots to produce figure 2:
+
+```{r}
+grouped_plots <- ggpubr::ggarrange(sespd.coef, sesmpd.coef, sesmntd.coef, 
+                           labels = c("(a)", "(b)", "(c)"), ncol = 3)
+
+#ggsave(here("resubm", "grouped_plots.jpeg"), dpi = 600, width = 13.7, height = 5)
+```
+
+<br>
+
+And here we plot figure 2:
+```{r, fig.width=14, fig.height=5}
+grouped_plots
+```
+
+<br>
+
+Now, come Tables S4, S5, and S6 that refer to panels (a), (b), and (c) of the above figure, respectively:
+
+Table S4:
+```{r}
+library(sjPlot) # The function tab_model from the R package sjPlot takes the model output and transform it into a publication-ready table.
+#It is different from the approach used from the KableExtra R package. The function tab_model requires a list that can be of different origins, such as "lm", "lme", "glm", etc. The function kbl requires a data.frame.
+tab_model(model_pd)
+
+
+```
+
+<br>
+
+Table S5:
+```{r}
+tab_model(model_mpd)
+```
+
+<br>
+
+Table S6:
+```{r}
+tab_model(model_mntd)
+```
+
+<br>
+
+We calculate Variance Inflation Factors (VIF) for the final models. Even though the calculation of VIF is mentioned in the *Statistical analysis* sub-section of the paper and appears as *Table S1* in the supporting information, we had to show it after other figures and tables because it depends on the modelling approach.
+```{r}
+library(car) #for the calculation of Variance Inflation Factors (VIF)
+
+vif_pd <- data.frame(vif(model_pd))
+vif_mpd <- data.frame(vif(model_mpd))
+vif_mntd <- data.frame(vif(model_mntd))
+
+# Combine outputs by rows
+vif_all <- subset(t(cbind(vif_pd, vif_mpd, vif_mntd)))
+
+vif_all <- data.frame(vif_all[c(1,4,7), ])
+
+rownames(vif_all) <- c("sesPD", "sesMPD", "sesMNTD")
+```
+
+<br>
+
+Here is table S1:
+```{r}
+vif_all %>%
+  kbl(caption = "Table S1: Variance Inflation Factors (VIF) for all linear mixed-effects models. tempMin = minimum temperature of the coldest month, tempSeas = temperature seasonality, precAnn = annual precipitation, precColdQ = precipitation of the coldest quarter,  precSeas = precipitation seasonality, Group = rocky outcrops (campo rupestre, canga, campos de altitude, inselberg).") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+```
+
+<br>
+
+As we mentioned at the beginning of this report, figure 3 results from a node analysis called ```nodesig``` from the software ```Phylocom```. Therefore, we do not have any code to show. For more details on how to run a node analysis, please look at our *Material and methods* section and the documentation of ```Phylocom```, whose bibliographic reference is available from our *References* section, page 41.
+
+<br>
+
+***Part 4: Estimated marginal means, figure 4 and associated supplementary tables***
+
+Figure 4 derives from an estimated marginal means analysis using the function ```emmeans``` from the R package with the same name. Here, we provide the code for the emmeans analysis, the tables and the figure that result from it. Please look at the ``emmeans``` documentation for additional information.
+
+First, we start by running the ```emmeans``` function on the output of mixed-effect models for each response variable. Then, we provide the resulting Figure 4 and the two tables resulting from the emmeans analysis, i.e., Table S7 and Table S8.
+
+First, we calculate the emmeans and extract data for plotting Figure 4.
+```{r}
+library(emmeans)
+# emmeans for sesPD
+emmeans_pd <- emmeans(model_pd, list(pairwise ~ group), infer = c(TRUE, TRUE), adjust = "tukey")
+emmeans_mpd <- emmeans(model_mpd, list(pairwise ~ group), infer = c(TRUE, TRUE), adjust = "tukey")
+emmeans_mntd <- emmeans(model_mntd, list(pairwise ~ group), infer = c(TRUE, TRUE), adjust = "tukey")
+
+# Extract data for plotting
+dat_emmeans_pd <- summary(emmeans_pd)$`emmeans of group`
+dat_emmeans_mpd <- summary(emmeans_mpd)$`emmeans of group`
+dat_emmeans_mntd <- summary(emmeans_mntd)$`emmeans of group`
+```
+
+<br>
+
+Now, we prepare the figure corresponding to each response variable and combine them into a single figure.
+
+First, sesPD.
+```{r}
+# sesPD
+plot_emmeans_pd <- ggplot(dat_emmeans_pd, aes(group, emmean)) +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("", "", "", "")) +
+  labs(y = "Estimated marginal means\n(sesPD model)", x = "") +
+  geom_hline(yintercept = 0, color = "grey", lty = 3)
+
+plot_emmeans_pd <- plot_emmeans_pd +
+  geom_rect(xmin = c(0.5, 1.5, 2.5, 3.5), 
+            xmax = c(1.5, 2.5, 3.5, 4.5), 
+            ymin = -5.5, 
+            ymax = 0.7, 
+            aes(fill = dat_emmeans_pd$group), 
+            alpha = 0.2) +
+  theme_bw() +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("", "", "", "")) +
+  labs(y = "Estimated marginal means\n(sesPD model)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+plot_emmeans_pd <- plot_emmeans_pd +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black"),
+    axis.ticks.x = element_blank())
+
+p_emm_pd <- plot_emmeans_pd +
+  geom_text(x = 1.2, y = -3.15, label = " a***") +
+  geom_text(x = 2.2, y = -2.45, label = "   ab***") +
+  geom_text(x = 3.2, y = -1.05, label = " b*") +
+  geom_text(x = 4.2, y = -2.48, label = "   ab***")
+```
+
+<br>
+
+Then, sesMPD.
+```{r}
+# sesMPD
+plot_emmeans_mpd <- ggplot(dat_emmeans_mpd, aes(group, emmean)) +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("", "", "", "")) + 
+  labs(y = "Estimated marginal means\n(sesMPD model)", x = "") +
+  geom_hline(yintercept = 0, color = "grey", lty = 3)
+
+plot_emmeans_mpd <- plot_emmeans_mpd +
+    geom_rect(xmin = c(0.5, 1.5, 2.5, 3.5), 
+              xmax = c(1.5, 2.5, 3.5, 4.5), 
+              ymin = -5.5, 
+              ymax = 0.7, 
+              aes(fill = dat_emmeans_mpd$group), 
+              alpha = 0.2)+
+  theme_bw()+
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("", "", "", "")) + 
+  labs(y = "Estimated marginal means\n(sesMPD model)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+ 
+plot_emmeans_mpd <- plot_emmeans_mpd +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black"),
+    axis.ticks.x = element_blank())
+
+p_emm_mpd <- plot_emmeans_mpd +
+  geom_text(x = 1.2, y = -3.27, label = " a***") +
+  geom_text(x = 2.2, y = -0.99, label = "b") +
+  geom_text(x = 3.2, y = -1.20, label = "ab") +
+  geom_text(x = 4.2, y = -1.61, label = "  ab**")
+```
+
+<br>
+
+Finally, sesMNTD.
+```{r}
+# sesMNTD
+plot_emmeans_mntd <- ggplot(dat_emmeans_mntd, aes(group, emmean)) +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
+  labs(y = "Estimated marginal means\n(sesMNTD model)", x = "") +
+  geom_hline(yintercept = 0, color = "grey", lty = 3)
+
+plot_emmeans_mntd <- plot_emmeans_mntd +
+  geom_rect(xmin = c(0.5, 1.5, 2.5, 3.5), 
+            xmax = c(1.5, 2.5, 3.5, 4.5), 
+            ymin = -5.5, 
+            ymax = 0.7, 
+            aes(fill = dat_emmeans_mntd$group), 
+            alpha = 0.2) +
+  theme_bw() +
+  geom_pointrange(aes(ymin = lower.CL, ymax = upper.CL)) +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos de\naltitude", "Inselberg")) + 
+  labs(y = "Estimated marginal means\n(sesMNTD model)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+plot_emmeans_mntd <- plot_emmeans_mntd +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black"),
+    axis.text.x = element_text(size = 12))
+
+p_emm_mntd <- plot_emmeans_mntd +
+  geom_text(x = 1.2, y = -2.41, label = " a***") +
+  geom_text(x = 2.2, y = -2.25, label = " a***") +
+  geom_text(x = 3.2, y = -0.76, label = "b") +
+  geom_text(x = 4.2, y = -2.21, label = "   ab***")
+```
+
+<br>
+
+Now, we combine these plots into the figure 4.
+```{r}
+all_veg.types <- ggpubr::ggarrange(p_emm_pd, p_emm_mpd, p_emm_mntd, ncol = 1, nrow = 3,
+                  labels = c("(a)", "(b)", "(c)"))
+
+#ggsave(here("resubm", "all_veg.types.jpeg"), dpi = 600, height = 9, width = 4.5)
+```
+
+<br>
+
+Here is figure 4:
+
+```{r, fig.width = 4.5, fig.height = 9}
+all_veg.types
+```
+
+<br>
+
+Here is Table S7:
+```{r}
+
+# Extract values as a data.frame 
+em_pd <- summary(emmeans_pd)$`emmeans of group`
+em_mpd <- summary(emmeans_mpd)$`emmeans of group`
+em_mntd <- summary(emmeans_mntd)$`emmeans of group`
+
+# Combine them into one object
+em_all <- rbind(em_pd, em_mpd, em_mntd)
+
+# Add the Response column
+em_all$Response <- c("sesPD", "", "", "", "sesMPD", "", "", "", "sesMNTD", "", "", "")
+
+# Reorder columns
+em_all <- em_all[, c("Response", "group", "emmean", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
+
+# Prin the table
+em_all %>%
+  kbl(caption = "Table S7: Estimated marginal means for phylogenetic diversity (sesPD) and phylogenetic structure (sesMPD and sesMNTD) of the Brazilian rocky outcrops. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg.") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+```
+
+
+
+<br>
+
+Here is Table S8:
+
+```{r}
+# Extract values as a data.frame 
+pair_pd <- summary(emmeans_pd)$`pairwise differences of group`
+pair_mpd <- summary(emmeans_mpd)$`pairwise differences of group`
+pair_mntd <- summary(emmeans_mntd)$`pairwise differences of group`
+
+# Combine them into one object
+pair_all <- rbind(pair_pd, pair_mpd, pair_mntd)
+
+# Add the Response column
+pair_all$Response <- c("sesPD", "", "", "", "", "", "sesMPD", "", "", "", "", "", "sesMNTD", "", "", "", "", "")
+
+# Reorder columns
+pair_all <- pair_all[, c("Response", "estimate", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
+
+# Prin the table
+pair_all %>%
+  kbl(caption = "Table S8: Pairwise comparisons (i.e., contrasts) of marginal means among the Brazilian rocky outcrops. Significant differences are shown in bold. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg. Marginal means result from linear mixed-effects models. Pairwise comparisons used the Tukey method to adjust confidence intervals and p-values.") %>%
+  kable_classic(full_width = F, html_font = "Arial")
+```
+
+
+<br>
+
+***Part 5: Figure 5***
+
+The last main figure refers to the median age of plant communities (MeCA). It is Figure 5 in the paper. It was calculated from the tip length value of each species and present in each site. For additional details on the calculation, please see the *Material and Methods section* of our paper and Cortez et al. (2021) in the reference list.
+
+First, we summarise the MeCA values by using the function ```summarySE```, which averages the median values for each rocky outcrop. Then, we used the average values to plot Figure 5. The function ```summarySE``` is available from *http://www.cookbook-r.com/Graphs/Plotting_means_and_error_bars_(ggplot2)* and the R package ```Rmisc```.  
+```{r}
+library(Rmisc)
+
+# Average MeCA values vy rocky outcrop
+data_meca <- summarySE(data, measurevar = "meca",
+                        groupvars = "group")
+
+# Plot the raw figure
+MeCA <- ggplot(data_meca, aes(group, meca)) +
+  geom_pointrange(aes(ymin = meca-ci, ymax = meca + ci)) +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos de\naltitude", "Inselberg")) +
+  labs(y = "Median Community Age\n(Median tip length in per site Myr)", x = "")
+
+# Insert the coloured background
+plot_meca <- MeCA +
+  geom_rect(xmin = c(0.5, 1.5, 2.5, 3.5), 
+            xmax = c(1.5, 2.5, 3.5, 4.5), 
+            ymin = 0, 
+            ymax = 3, 
+            aes(fill = data_meca$group), 
+            alpha = 0.2) +
+  theme_bw() +
+  geom_pointrange(aes(ymin = meca - ci, ymax = meca + ci)) +
+  scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos de\naltitude", "Inselberg")) +
+  labs(y = "Median Community Age\n(Median tip length per site in Myr)", x = "") +
+  theme(legend.position = "none") +
+  scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
+
+# Remove the grid  from theme_bw()
+plot_meca <- plot_meca +
+  theme(
+    #panel.border = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), 
+    axis.line = element_line(colour = "black"),
+    axis.ticks.x = element_blank())
+
+# Add the difference between rocky outcrops
+plot_meca  <- plot_meca +
+  geom_text(x = 1.2, y = 2.42, label = " a") +
+  geom_text(x = 2.2, y = 1.59, label = " ab") +
+  geom_text(x = 3.2, y = 1.17, label = "b") +
+  geom_text(x = 4.2, y = 2.27, label = "   a")
+```
+
+<br>
+
+Here is figure 5:
+```{r}
+plot_meca
+
+#ggsave("meca.sp.tiff", height = 4, width = 5)
+```
+
+***
+
+NB! Other Supporting Information figures were not shown here because they are not directly associated with a main figure.
+
+<br>
