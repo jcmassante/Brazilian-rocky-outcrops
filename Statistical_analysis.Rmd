@@ -836,9 +836,6 @@ em_all$Response <- c("sesPD", "", "", "", "sesMPD", "", "", "", "sesMNTD", "", "
 # Reorder columns
 em_all <- em_all[, c("Response", "group", "emmean", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
 
-# Format numbers to three decimal places
-#em_all <- apply(em_all[, c(3:9)], 2, function(x) sprintf(x, fmt = '%#.3f'))
-
 # Prin the table
 em_all %>%
   kbl(caption = "Table S7: Estimated marginal means for phylogenetic diversity (sesPD) and phylogenetic structure (sesMPD and sesMNTD) of the Brazilian rocky outcrops. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg.") %>%
@@ -865,14 +862,16 @@ pair_all <- rbind(pair_pd, pair_mpd, pair_mntd)
 # Add the Response column
 pair_all$Response <- c("sesPD", "", "", "", "", "", "sesMPD", "", "", "", "", "", "sesMNTD", "", "", "", "", "")
 
+names(pair_all) <- c("pairs", "estimate", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value", "Response")
+
 # Reorder columns
-pair_all <- pair_all[, c("Response", "estimate", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
+pair_all <- pair_all[, c("Response", "pairs", "estimate", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
 
 # Prin the table
 pair_all %>%
   kbl(caption = "Table S8: Pairwise comparisons (i.e., contrasts) of marginal means among the Brazilian rocky outcrops. Significant differences are shown in bold. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg. Marginal means result from linear mixed-effects models. Pairwise comparisons used the Tukey method to adjust confidence intervals and p-values.") %>%
   kable_classic(full_width = F, html_font = "Arial") %>% 
-  column_spec(8, bold = ifelse(pair_all$p.value < 0.05, TRUE, FALSE))
+  column_spec(9, bold = ifelse(pair_all$p.value < 0.05, TRUE, FALSE))
 ```
 
 ## {-}
