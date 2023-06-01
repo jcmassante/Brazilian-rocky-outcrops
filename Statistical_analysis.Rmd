@@ -274,7 +274,7 @@ model_pd <- lme(sespd ~
                 na.action = na.exclude)
 
 model_mpd <- lme(sesmpd ~
-                   tempSeas + minTempColdestMonth +	annualPrec + precSeas + precColdestQuarter,
+                   tempSeas + minTempColdestMonth + annualPrec + precSeas + precColdestQuarter,
                  random = ~1|site,
                  corExp(form = ~ lon + lat),
                  data = data_models,
@@ -282,7 +282,7 @@ model_mpd <- lme(sesmpd ~
                  na.action = na.exclude)
 
 model_mntd <- lme(sesmntd ~
-                    tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter,
+                    tempSeas + minTempColdestMonth + annualPrec + precSeas + precColdestQuarter,
                   random = ~1|site,
                   corExp(form = ~ lon + lat),
                   data = data_models,
