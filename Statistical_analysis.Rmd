@@ -652,7 +652,7 @@ As we mentioned at the beginning of this report, figure 3 results from a node an
 
 ***Part 4: Estimated marginal means, figure 4 and associated supplementary tables***
 
-Figure 4 derives from an estimated marginal means analysis using the function ```emmeans``` from the R package with the same name. Here, we provide the code for the emmeans analysis, the tables and the figure that result from it. Please look at the ``emmeans``` documentation for additional information.
+Figure 4 derives from an estimated marginal means analysis using the function ```emmeans``` from the R package with the same name. Here, we provide the code for the emmeans analysis, the tables and the figure that result from it. Please look at the ```emmeans``` documentation for additional information.
 
 First, we start by running the ```emmeans``` function on the output of mixed-effect models for each response variable. Then, we provide the resulting Figure 4 and the two tables resulting from the emmeans analysis, i.e., Table S7 and Table S8.
 
