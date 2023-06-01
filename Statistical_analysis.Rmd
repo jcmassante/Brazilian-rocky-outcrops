@@ -106,7 +106,7 @@ p1 <- ggplot(data, aes(group, tempSeas, fill = group)) +
   geom_boxplot(alpha = 0.5) +
   theme_bw() +
   scale_x_discrete(labels = c("Campo\nrupestre", "Canga", "Campos\nde\naltitude", "Inselberg")) +
-  labs(y = "Temperature Seasonality\n(standard deviation ×100)", x = "") +
+  labs(y = "Temperature Seasonality\n(standard deviation * 100)", x = "") +
   theme(legend.position = "none") +
   scale_fill_manual(values  = c( "#00BFC4", "#7CAE00","#F8766D" , "#C77CFF"))
 
@@ -151,7 +151,10 @@ all.clim.veg <- ggpubr::ggarrange(p1, p2, p3, p4, p5, ncol = 3, nrow = 2,
 #ggsave(here("resubm", "all.clim.veg.types.tiff"), height = 8, width = 10)
 ```
 
+<br>
+
 Here is figure S2:
+
 ```{r, fig.width=10, fig.height=8}
 all.clim.veg
 ```
@@ -175,6 +178,28 @@ data_models$lon <- data$longitude
 data_models$group <- data$group
 data_models$lat <- jitter(data_models$lat)#elimitate zero distance by a factor
 data_models$site <- data$site
+```
+
+<br>
+
+Then, we create a geographic distance matrix between sites to be used in the ```Moran's I``` function.
+```{r, comment=""}
+library(sp) #for handling geographic coordinates
+
+# Create geographic distance between sites
+coord <- as.matrix(spDists(cbind(data_models$lon, data_models$lat), longlat = TRUE, diagonal = FALSE))
+rownames(coord) <- data_models$site
+colnames(coord) <- data_models$site
+
+#Inverse distance weights
+inv.geo.dist <- 1/coord
+
+#Replace diagonal entries with zero
+diag(inv.geo.dist) <- 0
+inv.geo.dist[is.infinite(inv.geo.dist)] <- 0
+
+#Confirm whether it is zero
+sum(is.infinite(inv.geo.dist))
 ```
 
 <br>
@@ -215,29 +240,7 @@ res_mntd <- residuals(lm_mntd)
 
 <br>
 
-We create a geographic distance matrix between sites to be used in the ```Moran's I``` function.
-```{r, comment=""}
-library(sp) #for handling geographic coordinates
-
-# Create geographic distance between sites
-coord <- as.matrix(spDists(cbind(data_models$lon, data_models$lat), longlat = TRUE, diagonal = FALSE))
-rownames(coord) <- data_models$site
-colnames(coord) <- data_models$site
-
-#Inverse distance weights
-inv.geo.dist <- 1/coord
-
-#Replace diagonal entries with zero
-diag(inv.geo.dist) <- 0
-inv.geo.dist[is.infinite(inv.geo.dist)] <- 0
-
-#Confirm whether it is zero
-sum(is.infinite(inv.geo.dist))
-```
-
-<br>
-
-Now, we calculate Moran's I for the residuals of each OLS model using ```ape``` R package.
+And calculate Moran's I for the residuals of each OLS model using ```ape``` R package.
 ```{r}
 library(ape) #for the Moran's I function
 
@@ -258,20 +261,7 @@ mor_all_lm <- mor_all_lm[, c("Response", "observed", "expected", "sd", "p.value"
 
 <br>
 
-Here is the table S2 with values of Moran's I for each OLS model:
-```{r}
-library(kableExtra) # for changing table styles.
-
-# As in other tables below, we take the table generated from the original code and customise it such that it becomes similar to what has been shown in the publication.
-mor_all_lm %>%
-  kbl(caption = "Table S2: Moran’s I coefficient for the residuals extracted from linear models (least square) with the standardised effect size of the phylogenetic diversity (sesPD), the standardised effect size of the mean pairwise distance (sesMPD), and the standardised effect size of the mean nearest taxon distance (sesMNTD) as response variables.") %>%
-  kable_classic(full_width = F, html_font = "Arial")
-
-```
-
-<br>
-
-Since we found significant spatial autocorrelation for two response variables, we now run mixed-effect models accounting for spatial autocorrelation and heterogeneous aspects of sampling within sites (i.e., sites as a random effect) and extract the normalised residuals.
+Since we found significant spatial autocorrelation for two response variables (see Table S2 below), we run mixed-effect models accounting for spatial autocorrelation and heterogeneous aspects of sampling within sites (i.e., sites as a random effect) and extract the normalised residuals.
 ```{r}
 library(nlme) #for mixed-effect models
 
@@ -325,14 +315,39 @@ mor_all_lme <- mor_all_lme[, c("Response", "observed", "expected", "sd", "p.valu
 
 <br>
 
-Here is the table S3 with Moran's I from the mixed-effect models' residuals:
+## {.tabset .tabset-pills}
+
+### Table S2
+
+Here is Table S2 with Moran's I values from residuals of each OLS model:
 ```{r}
+#Numbers with three decimal places
+options(scipen = 1, digits = 3)
+
+library(kableExtra) # for changing table styles.
+
+# As in other tables below, we take the table generated from the original code and customise it such that it becomes similar to what has been shown in the publication.
+mor_all_lm %>%
+  kbl(caption = "Table S2: Moran’s I coefficient for the residuals extracted from linear models (least square) with the standardised effect size of the phylogenetic diversity (sesPD), the standardised effect size of the mean pairwise distance (sesMPD), and the standardised effect size of the mean nearest taxon distance (sesMNTD) as response variables.") %>%
+  kable_classic(full_width = F, html_font = "Arial")%>% 
+  column_spec(5, bold = ifelse(mor_all_lm$p.value < 0.05, TRUE, FALSE))
+
+```
+
+### Table S3
+
+Here is table S3 with Moran's I values from residuals of each mixed-effect model:
+```{r}
+#Numbers with three decimal places
+options(scipen = 1, digits = 3)
 
 mor_all_lme %>%
   kbl(caption = "Table S3: Moran’s I coefficient for the normalised residuals extracted from linear mixed-effects models with the standardised effect size of the phylogenetic diversity (sesPD), the standardised effect size of the mean pairwise distance (sesMPD), and the standardised effect size of the mean nearest taxon distance (sesMNTD) as response variables. An exponential correlation structure was included in all models to account for the spatial autocorrelation between sites.") %>%
-  kable_classic(full_width = F, html_font = "Arial")
+  kable_classic(full_width = F, html_font = "Arial")%>% 
+  column_spec(5, bold = ifelse(mor_all_lme$p.value < 0.05, TRUE, FALSE))
 ```
 
+## {-}
 <br>
 
 ***
@@ -340,6 +355,8 @@ mor_all_lme %>%
 ***Part 3: Modelling, figure 2 and associated supplementary tables***
 
 Now that the first part has been done, we move to the results showed in the figure 2 and associate supporting tables S4, S5, and S6. First, we run the models for **sesPD**, **sesMPD**, and **sesMNTD**. Then, we plot the figure.
+
+<br>
 
 Modelling sesPD:
 ```{r}
@@ -357,6 +374,15 @@ model_pd <- lme(sespd ~
 # vif(model_pd)
 # summary(model_pd)
 # anova.lme(model_pd, type = "marginal")
+
+library(MuMIn)# for marginal and conditional R-squared
+
+# Calculate marginal and conditional R-squared from the model output
+r_pd <- r.squaredGLMM(model_pd)
+
+# Extract them separately as a numeric object to be included in the plot subtitle
+r_pd_m <- format((r_pd)[1], digits = 3)
+r_pd_c <- format((r_pd)[2], digits = 3)
 
 # Coefficients and confidence intervals for plotting
 confints.r <- intervals(model_pd,which = "fixed")$fixed
@@ -380,7 +406,7 @@ sespd.coef <- ggplot(sespd.avg, aes(var.r, est., color = colcoef.r)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.08, size = 0.7, alpha = 0.7, show.legend = F) +
   geom_point(size = 2, alpha = 0.7, show.legend = F) +
   scale_x_discrete(name = NULL) +
-  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.5, 1.62), breaks = c(-1.5, -1, -0.5, 0, 0.5, 1, 1.5)) +
+  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.5, 1.7), breaks = c(-1.5, -1, -0.5, 0, 0.5, 1, 1.5)) +
   theme_bw() +
   coord_flip() +
   scale_color_manual(values = c("#2b8cbe", "#252525", "#b22222")) +
@@ -388,7 +414,8 @@ sespd.coef <- ggplot(sespd.avg, aes(var.r, est., color = colcoef.r)) +
         axis.text.y = element_text(size = 10)) +
   annotate("text", x = 3.2, y = 1.025, label = "**",color = "#b22222") +
   annotate("text", x = 5.2, y = -0.783, label = "*",color = "#2b8cbe") +
-  labs(title = "sesPD", subtitle = expression("Marginal R"^2 ~"= 0.425/ Conditional R"^2 ~"= 0.615 "))
+  ggtitle(label = "sesPD",
+          subtitle = bquote(paste("Marginal ", R^2, " = ",.(r_pd_m), "/ Conditional ", R^2, " = ",.(r_pd_c))))
 
 sespd.coef <- sespd.coef +
   theme(
@@ -416,6 +443,13 @@ model_mpd <- lme(sesmpd ~
 # vif(model_mpd)
 # summary(model_mpd)
 # anova.lme(model_mpd)
+
+# Calculate marginal and conditional R-squared from the model output
+r_mpd <- r.squaredGLMM(model_mpd)
+
+# Extract them separately as a numeric object to be included in the plot subtitle
+r_mpd_m <- format((r_mpd)[1], digits = 3)
+r_mpd_c <- format((r_mpd)[2], digits = 3)
 
 # Coefficients and confidence intervals for plotting
 confints.r <- intervals(model_mpd,which = "fixed")$fixed
@@ -448,7 +482,8 @@ sesmpd.coef <- ggplot(sesmpd.avg, aes(var.r, est., color = colcoef.r)) +
   annotate("text", x = 1.2, y = -1.34, label = "*",color = "#2b8cbe") +
   annotate("text", x = 3.2, y = 1.19, label = "*",color = "#b22222") +
   annotate("text", x = 5.2, y = -1.15, label = "*",color = "#2b8cbe") +
-  labs(title = "sesMPD", subtitle = expression("Marginal R"^2 ~"= 0.298/ Conditional R"^2 ~"= 0.528 "))
+  ggtitle(label = "sesPD",
+          subtitle = bquote(paste("Marginal ", R^2, " = ",.(r_mpd_m), "/ Conditional ", R^2, " = ",.(r_mpd_c))))
 
 sesmpd.coef <- sesmpd.coef +
   theme(
@@ -478,6 +513,13 @@ model_mntd <- lme(sesmntd ~
 #summary(model_mntd)
 #anova.lme(model_mntd)
 
+# Calculate marginal and conditional R-squared from the model output
+r_mntd <- r.squaredGLMM(model_mntd)
+
+# Extract them separately as a numeric object to be included in the plot subtitle
+r_mntd_m <- format((r_mntd)[1], digits = 3)
+r_mntd_c <- format((r_mntd)[2], digits = 3)
+
 # Coefficients and confidence intervals for plotting
 confints.r <- intervals(model_mntd,which = "fixed")$fixed
 var.r <- as.factor(rownames(confints.r))
@@ -500,7 +542,7 @@ sesmntd.coef <- ggplot(sesmntd.avg, aes(var.r, est., color = colcoef.r)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.08, size = 0.7, alpha = 0.7, show.legend = F) +
   geom_point(size = 2, alpha = 0.7, show.legend = F) +
   scale_x_discrete(name = NULL ) +
-  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.20, 1.30), breaks = c(-1, -0.5, 0, 0.5, 1)) +
+  scale_y_continuous(name = "Standardised parameter estimates", limits = c(-1.30, 1.30), breaks = c(-1, -0.5, 0, 0.5, 1)) +
   theme_bw() +
   coord_flip() +
   scale_color_manual(values = c("#2b8cbe", "#252525", "#b22222")) +
@@ -508,7 +550,8 @@ sesmntd.coef <- ggplot(sesmntd.avg, aes(var.r, est., color = colcoef.r)) +
         axis.text.y = element_text(size = 10)) +
   annotate("text", x = 3.2, y = 0.784, label = "**",color = "#b22222") +
   annotate("text", x = 5.2, y = -0.607, label = "*",color = "#2b8cbe") +
-  labs(title = "sesMNTD", subtitle = expression("Marginal R"^2 ~"= 0.330/ Conditional R"^2 ~"= 0.600 "))
+  ggtitle(label = "sesMNTD",
+          subtitle = bquote(paste("Marginal ", R^2, " = ",.(r_mntd_m), "/ Conditional ", R^2, " = ",.(r_mntd_c))))
 
 sesmntd.coef <- sesmntd.coef +
   theme(
@@ -539,30 +582,37 @@ grouped_plots
 
 <br>
 
-Now, come Tables S4, S5, and S6 that refer to panels (a), (b), and (c) of the above figure, respectively:
-
-Table S4:
-```{r}
-library(sjPlot) # The function tab_model from the R package sjPlot takes the model output and transform it into a publication-ready table.
-#It is different from the approach used from the KableExtra R package. The function tab_model requires a list that can be of different origins, such as "lm", "lme", "glm", etc. The function kbl requires a data.frame.
-tab_model(model_pd)
-
-
-```
+Now, come Tables S4, S5, and S6 that refer to panels (a), (b), and (c) of the above figure, respectively. These tables are extracted from the model output by using the function ```tab_model``` from the R package ```sjPlot```.
 
 <br>
 
-Table S5:
+```{r}
+library(sjPlot) 
+```
+
+## {.tabset .tabset-pills}
+
+### Table S4
+
+```{r}
+tab_model(model_pd)
+```
+
+### Table S5
+
 ```{r}
 tab_model(model_mpd)
 ```
 
-<br>
+### Table S6
 
-Table S6:
 ```{r}
 tab_model(model_mntd)
 ```
+
+## {-}
+
+***
 
 <br>
 
@@ -586,6 +636,9 @@ rownames(vif_all) <- c("sesPD", "sesMPD", "sesMNTD")
 
 Here is table S1:
 ```{r}
+#Numbers with three decimal places
+options(scipen = 1, digits = 3)
+
 vif_all %>%
   kbl(caption = "Table S1: Variance Inflation Factors (VIF) for all linear mixed-effects models. tempMin = minimum temperature of the coldest month, tempSeas = temperature seasonality, precAnn = annual precipitation, precColdQ = precipitation of the coldest quarter,  precSeas = precipitation seasonality, Group = rocky outcrops (campo rupestre, canga, campos de altitude, inselberg).") %>%
   kable_classic(full_width = F, html_font = "Arial")
@@ -759,8 +812,15 @@ all_veg.types
 
 <br>
 
-Here is Table S7:
+Now, come Tables S7 and S8.
+
+## {.tabset .tabset-pills}
+
+### Table S7
+
 ```{r}
+#Numbers with three decimal places
+options(scipen = 1, digits = 3)
 
 # Extract values as a data.frame 
 em_pd <- summary(emmeans_pd)$`emmeans of group`
@@ -776,19 +836,24 @@ em_all$Response <- c("sesPD", "", "", "", "sesMPD", "", "", "", "sesMNTD", "", "
 # Reorder columns
 em_all <- em_all[, c("Response", "group", "emmean", "SE", "df", "lower.CL", "upper.CL", "t.ratio", "p.value")]
 
+# Format numbers to three decimal places
+#em_all <- apply(em_all[, c(3:9)], 2, function(x) sprintf(x, fmt = '%#.3f'))
+
 # Prin the table
 em_all %>%
   kbl(caption = "Table S7: Estimated marginal means for phylogenetic diversity (sesPD) and phylogenetic structure (sesMPD and sesMNTD) of the Brazilian rocky outcrops. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg.") %>%
-  kable_classic(full_width = F, html_font = "Arial")
+  kable_classic(full_width = F, html_font = "Arial") %>% 
+  column_spec(9, bold = ifelse(em_all$p.value < 0.05, TRUE, FALSE))
 ```
-
-
 
 <br>
 
-Here is Table S8:
+### Table S8
 
 ```{r}
+#Numbers with three decimal places
+options(scipen = 1, digits = 3)
+
 # Extract values as a data.frame 
 pair_pd <- summary(emmeans_pd)$`pairwise differences of group`
 pair_mpd <- summary(emmeans_mpd)$`pairwise differences of group`
@@ -806,9 +871,12 @@ pair_all <- pair_all[, c("Response", "estimate", "SE", "df", "lower.CL", "upper.
 # Prin the table
 pair_all %>%
   kbl(caption = "Table S8: Pairwise comparisons (i.e., contrasts) of marginal means among the Brazilian rocky outcrops. Significant differences are shown in bold. CR = campo rupestre, CF = canga, CA = campos de altitude, IN = inselberg. Marginal means result from linear mixed-effects models. Pairwise comparisons used the Tukey method to adjust confidence intervals and p-values.") %>%
-  kable_classic(full_width = F, html_font = "Arial")
+  kable_classic(full_width = F, html_font = "Arial") %>% 
+  column_spec(8, bold = ifelse(pair_all$p.value < 0.05, TRUE, FALSE))
 ```
 
+## {-}
+***
 
 <br>
 
