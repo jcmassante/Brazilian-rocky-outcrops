@@ -432,7 +432,7 @@ Modelling sesMPD:
 ```{r}
 # sesMPD
 model_mpd <- lme(sesmpd ~
-                   tempSeas + minTempColdestMonth +	annualPrec + precSeas + precColdestQuarter + group,
+                   tempSeas + minTempColdestMonth + annualPrec + precSeas + precColdestQuarter + group,
                  random = ~1|site,
                  corExp(form = ~ lon + lat),
                  data = data_models,
@@ -501,7 +501,7 @@ Modelling sesMNTD:
 ```{r}
 # sesMNTD
 model_mntd <- lme(sesmntd ~
-                    tempSeas + minTempColdestMonth + annualPrec +	precSeas + precColdestQuarter + group,
+                    tempSeas + minTempColdestMonth + annualPrec + precSeas + precColdestQuarter + group,
                   random = ~1|site,
                   corExp(form = ~ lon + lat),
                   data = data_models,
