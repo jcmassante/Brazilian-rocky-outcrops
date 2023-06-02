@@ -1,6 +1,7 @@
 # Brazilian-rocky-outcrops
 
 ![cr](https://github.com/jcmassante/Brazilian-rocky-outcrops/assets/19232355/2cf50577-7378-4a5d-835b-c6abea4f69a6)
+
 *This illustration made by Whendel Silva for the paper shows four Brazilian rocky outcrops: (a) Campo rupestre, (b) Canga, (c) Campo de altitude, and (d) Inselberg*
 
 
